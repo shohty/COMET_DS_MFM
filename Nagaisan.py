@@ -46,7 +46,7 @@ def main():
         z.append(data[i][2])
         x0_data.append(data[i][6])
 
-    diff = 30 #mm
+    diff = 10 #mm
     zlim = []
     xlist = np.linspace(-800,800,17)
     corrB = [[] for i in range(len(xlist))]
@@ -84,8 +84,8 @@ def main():
     for i in range(len(xlist)):
         z_prec = np.linspace(-1000,1000,1001)
         fit_range = np.array([abs(z) for z in zlim])<250
-        plt.plot(zlim,origB[i])
-        plt.plot(zlim,corrB[i])
+        plt.plot(zlim,origB[i],'o')
+        plt.plot(zlim,corrB[i],'o')
         popt_orig,pcov_orig = curve_fit(pol2, np.array(zlim)[fit_range], np.array(origB[i])[fit_range])
         popt_corr,pcov_corr = curve_fit(pol2, np.array(zlim)[fit_range], np.array(corrB[i])[fit_range])
         perr_orig = np.sqrt(np.diag(pcov_orig))
@@ -94,7 +94,10 @@ def main():
         plt.plot(z_prec,pol2(z_prec,*popt_corr), color='tab:orange')
         plt.axvline(popt_orig[1],linestyle=':')
         plt.axvline(popt_corr[1],linestyle=':',color='tab:orange')
+        plt.title(f"{xlist[i]:.2f}")
         pdf.savefig()
+        plt.show(block=False)
+        input("Enter を押すと次へ進みます...")  # ユーザーの入力待ち
         plt.clf()
         peakm_orig.append(popt_orig[1])
         peakm_corr.append(popt_corr[1])
