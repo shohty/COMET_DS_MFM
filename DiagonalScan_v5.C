@@ -28,6 +28,7 @@ using namespace std;
 /*
 格子のxy平面の側面にzは固定する
 v5では複数の軸でpeakpositionを比較していく
+TFileの定義に注意、TFileオブジェクトも保存
 */
 double linear_Interpolation(double left, double left_B, double right, double right_B, double x){
     //線形補間の関数
