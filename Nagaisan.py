@@ -2,6 +2,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 def main():
@@ -24,7 +25,7 @@ def main():
     zlist = []
     for i in range(len(data)):
         if i==0:
-            x = data[i][0]
+            x = data[i][0] 
             linez = []
         elif x != data[i][0]:
             xz_data.append(linez)
@@ -48,7 +49,9 @@ def main():
 
     diff = 10 #mm
     zlim = []
-    xlist = np.linspace(-800,800,17)
+    #xlist = np.linspace(-800,800,17)
+    xlist = [-760,-500,0,500,760]
+    #xlist = [760,500,0,-500,-760]
     corrB = [[] for i in range(len(xlist))]
     origB = [[] for i in range(len(xlist))]
     for z in zlist:
@@ -95,6 +98,10 @@ def main():
         plt.axvline(popt_orig[1],linestyle=':')
         plt.axvline(popt_corr[1],linestyle=':',color='tab:orange')
         plt.title(f"{xlist[i]:.2f}")
+        filename = f"x_{xlist[i]:.0f}_diff_{diff:.0f}.csv"  # ファイル名に xlist[i] と diff を含める
+        df = pd.DataFrame({"z": zlim, "Corrected B": corrB[i], "Original B": origB[i]})
+        df.to_csv(filename, index=False)  # index=False で余計なインデックスを出力しない
+        print(f"Saved: {filename}")
         pdf.savefig()
         plt.show(block=False)
         input("Enter を押すと次へ進みます...")  # ユーザーの入力待ち
@@ -116,6 +123,8 @@ def main():
     plt.clf()
 
     pdf.close()
+    
+
 
 
 if __name__=='__main__':
