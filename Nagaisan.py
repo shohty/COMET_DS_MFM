@@ -123,9 +123,6 @@ def main():
     plt.clf()
 
     pdf.close()
-    
-
-
 
 if __name__=='__main__':
     main()
