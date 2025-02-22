@@ -87,7 +87,7 @@ def plot(OPERAfile,MEASfile):
     Bmax_index = np.argmax(Bcorr)
     BmaxZ = Z[Bmax_index]
     quadfit = ROOT.TF1("quadfit", "[0]*(x - [1])^2 + [2]", BmaxZ-150, BmaxZ+150)
-    quadfit.SetParameters(0, 0, 0.85)  # 初期パラメータ
+    quadfit.SetParameters(-1e-6, BmaxZ, 0.85)  # 初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち
     g0.Fit(quadfit, "R")  # "R" = 指定範囲でフィット
     quadfit.SetLineColor(ROOT.kCyan)
     quadfit.Draw("same")
@@ -226,15 +226,15 @@ if __name__=='__main__':
         ("X_-500Y_0_Map.root","test20240627-4.root"),
         ("X_-650Y_0_Map.root","test20240627-7.root"),
         ("X_-760Y_0_Map.root","test20240627-6.root"),
-        ("X_0Y_-200_Map.root","test20240710-4.root"),
-        ("X_0Y_-729_Map.root","test20240628-2.root"),
+        #("X_0Y_-200_Map.root","test20240710-4.root"),
+        #("X_0Y_-729_Map.root","test20240628-2.root"),
         ("X_0Y_0_Map.root","test20240626-6.root"),
-        ("X_0Y_200_Map.root","test20240710-1.root"),
-        ("X_0Y_780_Map.root","test20240628-0_rev.root"),
+        #("X_0Y_200_Map.root","test20240710-1.root"),
+        #("X_0Y_780_Map.root","test20240628-0_rev.root"),
         ("X_200Y_0_Map.root","test20240627-0.root"),
         ("X_500Y_0_Map.root","test20240627-1.root"),
         ("X_650Y_0_Map.root","test20240627-8.root"),
-        ("X_760Y_0_revMap.root","test20240627-2rev.root"),#最後の数行のレーザートラッカーデータがおかしい点を削除したのがrev
+        ("X_760Y_0_revMap.root","test20240627-2rev.root"),#rev : the version deleted the last several strange lines 
     ]
     
     for operafilename, measfilename in file_pairs:
