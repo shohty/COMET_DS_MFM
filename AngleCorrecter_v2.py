@@ -3,8 +3,28 @@ import ROOT
 import numpy as np
 import os
 #version2ではセンサー補正に回転行列を用いる＆測定や補正前OPERAデータでのPeakPosition分布も出力
-
-Xaxlist, p1list, p1errlist = [], [], []
+#三次元空間でのベクトルの表記方法は(z,x,y)の順
+Xaxlist, p1corr_list, p1correrr_list = [], [], [] #PeakPosition 角度補正後
+p1meas_list, p1measerr_list = [], []#PeakPosition 測定
+p1opera_list, p1operaerr_list = [], []#PeakPosition 角度補正前
+def rotM_xz(deg):
+    #xz平面における回転行列
+    theta = np.deg2rad(deg)
+    return np.array([[np.cos(theta),-np.sin(theta),0],
+                    [np.sin(theta),np.cos(theta),0],
+                    [0, 0, 1]])
+def rotM_xy(deg):
+    #xy平面における回転行列
+    theta = np.deg2rad(deg)
+    return np.array([[1, 0, 0],
+                     [0, np.cos(theta),-np.sin(theta)],
+                    [0,np.sin(theta),np.cos(theta)]])
+def rotM_yz(deg):
+    #yz平面における回転行列
+    theta = np.deg2rad(deg)
+    return np.array([[np.cos(theta), 0, -np.sin(theta)],
+                     [0, 1, 0],
+                     [np.sin(theta), 0, np.cos(theta)]])
 def plot(OPERAfile,MEASfile):
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
@@ -58,55 +78,53 @@ def plot(OPERAfile,MEASfile):
     Bzstd = np.array(Bzstdlist, dtype=np.float64)
     Bstd = np.sqrt(((Bx/B) ** 2) * (Bxstd ** 2) + ((By/B) ** 2) * (Bystd ** 2) + ((Bz/B) ** 2) * (Bxstd ** 2))
     
-    theta_x = np.deg2rad(0.4)#Bxセンサーのxz平面での角度
-    phi_x = np.deg2rad(90-0.5)#Bxセンサーのxy平面での角度
-    theta_y = np.deg2rad(-0.2)#Byセンサーのyz平面での角度
-    phi_y = np.deg2rad(0.2)#Byセンサーのxy平面での角度
-    theta_z = np.deg2rad(90+1.8)#Bzセンサーのxz平面での角度
-    phi_z = np.deg2rad(90-0.4)#Bzセンサーのyz平面での角度
+    #各センサーの法線ベクトルを出す
+    theta_Bx = np.deg2rad(0.4)#Bxセンサーのxz平面での角度
+    phi_Bx = np.deg2rad(-0.5)#Bxセンサーのxy平面での角度
+    theta_By = np.deg2rad(-0.2)#Byセンサーのyz平面での角度
+    phi_By = np.deg2rad(0.2)#Byセンサーのxy平面での角度
+    theta_Bz = np.deg2rad(1.8)#Bzセンサーのxz平面での角度
+    phi_Bz = np.deg2rad(0.)#Bzセンサーのyz平面での角度
+    #theta_Bx = np.deg2rad(0)#Bxセンサーのxz平面での角度
+    #phi_Bx = np.deg2rad(0)#Bxセンサーのxy平面での角度
+    #theta_By = np.deg2rad(0)#Byセンサーのyz平面での角度
+    #phi_By = np.deg2rad(0)#Byセンサーのxy平面での角度
+    #theta_Bz = np.deg2rad(0)#Bzセンサーのxz平面での角度
+    #phi_Bz = np.deg2rad(0)#Bzセンサーのyz平面での角度
     
-    #センサーの角度補正をかける。角度の定義や計算式などログノート要チェック
-    Bxcorr = Bx * np.cos(theta_x) * np.sin(phi_x) - By * np.cos(phi_x) - Bz * np.sin(theta_x)
-    Bycorr = By * np.cos(theta_y) * np.cos(phi_y) - Bx * np.sin(phi_y) - Bz * np.sin(theta_y)
-    Bzcorr = Bz * np.sin(theta_z) * np.sin(phi_z) - By * np.cos(phi_z) - Bx * np.cos(theta_z)
+    nBx =   rotM_xy(phi_Bx) @ rotM_xz(theta_Bx) @np.array([[0],
+                                                           [1],
+                                                           [0]])
+    print("nBx : ", nBx)
+    
+    nBy = rotM_xy(phi_By) @ rotM_yz(theta_By) @ np.array([[0],
+                                                          [0],
+                                                          [1]])
+    print("nBy : ", nBy)
+    nBz = rotM_yz(phi_Bz) @ rotM_xz(theta_Bz) @ np.array([[1],
+                                                          [0],
+                                                          [0]])
+    print("nBz : ", nBz)
+    #OPERAデータに対して角度補正をかける。各点の磁場ベクトルと各センサーの法線ベクトルの内積
+    Bxcorr = np.zeros(len(Bx))
+    Bycorr = np.zeros(len(Bx))
+    Bzcorr = np.zeros(len(Bx))
+    Bcorr = np.zeros(len(Bx))
+    for i in range(len(Bx)):
+        B_vec = np.array([[Bz[i]],
+                     [Bx[i]],
+                     [By[i]]])#磁場の三次元ベクトル
+        Bxcorr[i] = np.dot(B_vec.T, nBx).item()#itemをつけないとあくまで1×1の行列として処理される
+        Bycorr[i] = np.dot(B_vec.T, nBy).item()
+        Bzcorr[i] = np.dot(B_vec.T, nBz).item()
     Bcorr =  np.sqrt(Bxcorr ** 2 + Bycorr ** 2 + Bzcorr ** 2)
     
     #キャンバス描画
     cfit = ROOT.TCanvas("cfit", f"{axname}", 800, 600)# Z vs B Fitあり angle corrected
     call = ROOT.TCanvas("call", f"{axname}", 1600, 1200)# Z vs B Fit なし　測定 & OPERA & OPERA angle corrected 各成分
     
-    cfit.cd()
-    g0 = ROOT.TGraph(len(Z), Z, Bcorr)
-    g0.SetMarkerStyle(20)
-    g0.SetMarkerColor(ROOT.kBlack)
-    g0.SetTitle(f"{axname} : sensorangle-corrected")
-    g0.GetXaxis().SetTitle("z (mm)")
-    g0.GetYaxis().SetTitle("B (T)")
-    g0.Draw("AP")
-    Bmax = np.max(Bcorr)
-    Bmax_index = np.argmax(Bcorr)
-    BmaxZ = Z[Bmax_index]
-    quadfit = ROOT.TF1("quadfit", "[0]*(x - [1])^2 + [2]", BmaxZ-150, BmaxZ+150)
-    quadfit.SetParameters(-1e-6, BmaxZ, 0.85)  # 初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち
-    g0.Fit(quadfit, "R")  # "R" = 指定範囲でフィット
-    quadfit.SetLineColor(ROOT.kCyan)
-    quadfit.Draw("same")
-    cfit.SetGridx()
-    cfit.SetGridy()
-    cfit.Draw()
-    ROOT.gStyle.SetOptFit(1)
-    cfit.Update()
-    cfit.Show()  # オプション: Canvas を表示
-    cfit_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/corr_fit/"
-    outputFile = ROOT.TFile(f"{cfit_dir}angelcorr{axname}_out.root", "RECREATE")
-    cfit.Write()
-    outputFile.Close()
-    print(f"Successfuly Saved : {outputFile}")
-    
     #peakposition分布のプロット作成に必要
     Xaxlist.append(np.mean(X))
-    p1list.append(quadfit.GetParameter(1))
-    p1errlist.append(quadfit.GetParError(1))
     
     call.Divide(2,2)
     gOPERAx = ROOT.TGraph(len(Z), Z, Bx)
@@ -118,9 +136,19 @@ def plot(OPERAfile,MEASfile):
     gOPERAz = ROOT.TGraph(len(Z), Z, Bz)
     gOPERAz.SetMarkerStyle(8)
     gOPERAz.SetMarkerColor(ROOT.kRed+2)
-    gOPERAB = ROOT.TGraph(len(Z), Z, B)
+    gOPERAB = ROOT.TGraphErrors(len(Z), Z, B)
+    #gOPERAB = ROOT.TGraphErrors(len(Z), Z, B, np.zeros(len(Z)), Bstd)
     gOPERAB.SetMarkerStyle(8)
     gOPERAB.SetMarkerColor(ROOT.kRed+2)
+    Bmaxope = np.max(B)
+    BmaxopeZ = B[np.argmax(B)]
+    qfopera = ROOT.TF1("qfopera", "[0]*(x - [1])^2 + [2]", BmaxopeZ-150, BmaxopeZ+150)
+    qfopera.SetParameters(-1e-7, BmaxopeZ, Bmaxope)  # 初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち
+    gOPERAB.Fit(qfopera, "R")  # "R" = 指定範囲でフィット
+    qfopera.SetLineColor(ROOT.kCyan)
+    qfopera.Draw("same")
+    p1opera_list.append(qfopera.GetParameter(1))
+    p1operaerr_list.append(qfopera.GetParError(1))
     gmeasx = ROOT.TGraphErrors(len(Z), Z, Bxmeas, np.zeros(len(Z)), Bxstd)
     gmeasx.SetMarkerStyle(7)
     gmeasx.SetMarkerColor(ROOT.kBlue)
@@ -130,9 +158,19 @@ def plot(OPERAfile,MEASfile):
     gmeasz = ROOT.TGraphErrors(len(Z), Z, Bzmeas, np.zeros(len(Z)), Bzstd)
     gmeasz.SetMarkerStyle(8)
     gmeasz.SetMarkerColor(ROOT.kBlue)
-    gmeasB = ROOT.TGraphErrors(len(Z), Z, Bmeas, np.zeros(len(Z)), Bstd)
+    gmeasB = ROOT.TGraph(len(Z), Z, Bmeas)
+    #gmeasB = ROOT.TGraphErrors(len(Z), Z, Bmeas, np.zeros(len(Z)), Bstd)
     gmeasB.SetMarkerStyle(8)
     gmeasB.SetMarkerColor(ROOT.kBlue)
+    Bmeasmax = np.max(Bmeas)
+    BmeasmaxZ = Bmeas[np.argmax(Bmeas)]
+    qfmeas = ROOT.TF1("qfmeas", "[0]*(x - [1])^2 + [2]", BmeasmaxZ-150, BmeasmaxZ+150)
+    qfmeas.SetParameters(-1e-7, BmeasmaxZ, Bmeasmax)  # 初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち
+    gmeasB.Fit(qfmeas, "R")  # "R" = 指定範囲でフィット
+    qfmeas.SetLineColor(ROOT.kCyan)
+    qfmeas.Draw("same")
+    p1meas_list.append(qfmeas.GetParameter(1))
+    p1measerr_list.append(qfmeas.GetParError(1))
     gcorrx = ROOT.TGraph(len(Z), Z, Bxcorr)
     gcorrx.SetMarkerStyle(8)
     gcorrx.SetMarkerColor(ROOT.kSpring)
@@ -143,6 +181,7 @@ def plot(OPERAfile,MEASfile):
     gcorrz.SetMarkerStyle(8)
     gcorrz.SetMarkerColor(ROOT.kSpring)
     gcorrB = ROOT.TGraph(len(Z), Z, Bcorr)
+    #gcorrB = ROOT.TGraphErrors(len(Z), Z, Bcorr, np.zeros(len(Z)), Bstd)
     gcorrB.SetMarkerStyle(8)
     gcorrB.SetMarkerColor(ROOT.kSpring)
     #それぞれを分割したキャンバスにMultiGraphにして描画
@@ -213,10 +252,37 @@ def plot(OPERAfile,MEASfile):
     call.Update()
     #キャンバスをオブジェクトとして保存
     call_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/comp/"
-    call_outFile = ROOT.TFile(f"{call_dir}{axname}_out.root", "RECREATE")
+    call_outFile = ROOT.TFile(f"{call_dir}{axname}.root", "RECREATE")
     call.Write()
     call_outFile.Close()
     print(f"Successfuly Saved : {call_outFile}")
+    
+    cfit.cd()
+    gcorrB.SetTitle(f"{axname} : sensorangle-corrected")
+    gcorrB.GetXaxis().SetTitle("z (mm)")
+    gcorrB.GetYaxis().SetTitle("B (T)")
+    gcorrB.Draw("AP")
+    Bmax = np.max(Bcorr)
+    Bmax_index = np.argmax(Bcorr)
+    BmaxZ = Z[Bmax_index]
+    quadfit = ROOT.TF1("quadfit", "[0]*(x - [1])^2 + [2]", BmaxZ-150, BmaxZ+150)
+    quadfit.SetParameters(-1e-7, BmaxZ, Bmax)  # 初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち
+    gcorrB.Fit(quadfit, "R")  # "R" = 指定範囲でフィット
+    quadfit.SetLineColor(ROOT.kCyan)
+    quadfit.Draw("same")
+    p1corr_list.append(quadfit.GetParameter(1))
+    p1correrr_list.append(quadfit.GetParError(1))
+    cfit.SetGridx()
+    cfit.SetGridy()
+    cfit.Draw()
+    ROOT.gStyle.SetOptFit(1)
+    cfit.Update()
+    cfit.Show()  # オプション: Canvas を表示
+    cfit_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/corr_fit/"
+    outputFile = ROOT.TFile(f"{cfit_dir}angelcorr{axname}.root", "RECREATE")
+    cfit.Write()
+    outputFile.Close()
+    print(f"Successfuly Saved : {outputFile}")
     
 if __name__=='__main__':
     operafile_directory =  "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/DS189A_944turns_FieldIntegration_LaserTrackerPos/root/"
@@ -243,17 +309,38 @@ if __name__=='__main__':
         plot(OPERAfile, MEASfile)
     
     Xaxis = np.array(Xaxlist, dtype = np.float64)
-    p1 = np.array(p1list, dtype = np.float64)
-    p1err= np.array(p1errlist, dtype = np.float64)
+    p1meas = np.array(p1meas_list, dtype = np.float64)
+    p1measerr = np.array(p1measerr_list, dtype = np.float64)
+    p1opera = np.array(p1opera_list, dtype = np.float64)
+    p1operaerr = np.array(p1operaerr_list, dtype = np.float64)
+    p1corr = np.array(p1corr_list, dtype = np.float64)
+    p1correrr = np.array(p1correrr_list, dtype = np.float64)
     cpp = ROOT.TCanvas("cpp", "Peak Position", 800, 600)
-    gpp = ROOT.TGraphErrors(len(Xaxis), Xaxis, p1, np.zeros(len(Xaxis)), p1err)
-    gpp.SetMarkerColor(ROOT.kRed+2)
-    gpp.SetMarkerStyle(8)
-    gpp.GetXaxis().SetTitle("X (mm)")
-    gpp.GetYaxis().SetTitle("Peak Position (mm)")
-    gpp.Draw("AP")
-    cpp.SetGrid(1,1)
+    gppmeas = ROOT.TGraphErrors(len(Xaxis), Xaxis, p1meas, np.zeros(len(Xaxis)), p1measerr)
+    gppmeas.SetMarkerColor(ROOT.kBlue)
+    gppmeas.SetMarkerStyle(8)
+    gppopera = ROOT.TGraphErrors(len(Xaxis), Xaxis, p1opera, np.zeros(len(Xaxis)), p1operaerr)
+    gppopera.SetMarkerColor(ROOT.kRed+2)
+    gppopera.SetMarkerStyle(8)
+    gppcorr = ROOT.TGraphErrors(len(Xaxis), Xaxis, p1corr, np.zeros(len(Xaxis)), p1correrr)
+    gppcorr.SetMarkerColor(ROOT.kGreen)
+    gppcorr.SetMarkerStyle(8)
+    mgpp = ROOT.TMultiGraph()
+    mgpp.Add(gppmeas)
+    mgpp.Add(gppopera)
+    mgpp.Add(gppcorr)
+    mgpp.GetXaxis().SetTitle("X (mm)")
+    mgpp.GetYaxis().SetTitle("Peak Position (mm)")
+    mgpp.Draw("AP")
+    ROOT.gPad.SetGrid(1,1)
+    legendpp = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
+    legendpp.AddEntry(gppmeas, "Measured", "p")
+    legendpp.AddEntry(gppopera, "OPERA", "p")
+    legendpp.AddEntry(gppcorr, "Angle Corr", "p")
+    legendpp.SetFillStyle(0)
+    legendpp.Draw()
     cpp.Update()
+
     cpp_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/"
     ppoutFile = ROOT.TFile(f"{cpp_dir}PeakPosition.root", "RECREATE")
     cpp.Write()
