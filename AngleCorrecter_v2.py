@@ -10,21 +10,21 @@ p1opera_list, p1operaerr_list = [], []#PeakPosition 角度補正前
 def rotM_xz(deg):
     #xz平面における回転行列
     theta = np.deg2rad(deg)
-    return np.array([[np.cos(theta),-np.sin(theta),0],
-                    [np.sin(theta),np.cos(theta),0],
-                    [0, 0, 1]])
-def rotM_xy(deg):
-    #xy平面における回転行列
-    theta = np.deg2rad(deg)
-    return np.array([[1, 0, 0],
-                     [0, np.cos(theta),-np.sin(theta)],
-                    [0,np.sin(theta),np.cos(theta)]])
-def rotM_yz(deg):
-    #yz平面における回転行列
-    theta = np.deg2rad(deg)
     return np.array([[np.cos(theta), 0, -np.sin(theta)],
                      [0, 1, 0],
                      [np.sin(theta), 0, np.cos(theta)]])
+def rotM_xy(deg):
+    #xy平面における回転行列
+    theta = np.deg2rad(deg)
+    return np.array([[np.cos(theta), -np.sin(theta), 0], 
+                     [np.sin(theta), np.cos(theta), 0],
+                     [0, 0, 1]])
+def rotM_yz(deg):
+    #yz平面における回転行列
+    theta = np.deg2rad(deg)
+    return np.array([[1, 0, 0],
+                     [0, np.cos(theta), -np.sin(theta)],
+                     [0, np.sin(theta), np.cos(theta)]])
 def plot(OPERAfile,MEASfile):
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
@@ -76,15 +76,15 @@ def plot(OPERAfile,MEASfile):
     Bxstd = np.array(Bxstdlist, dtype=np.float64)
     Bystd = np.array(Bystdlist, dtype=np.float64)
     Bzstd = np.array(Bzstdlist, dtype=np.float64)
-    Bstd = np.sqrt(((Bx/B) ** 2) * (Bxstd ** 2) + ((By/B) ** 2) * (Bystd ** 2) + ((Bz/B) ** 2) * (Bxstd ** 2))
+    Bstd = np.sqrt(((Bxmeas/Bmeas) ** 2) * (Bxstd ** 2) + ((Bymeas/Bmeas) ** 2) * (Bystd ** 2) + ((Bzmeas/Bmeas) ** 2) * (Bxstd ** 2))
     
     #各センサーの法線ベクトルを出す
-    theta_Bx = np.deg2rad(0.4)#Bxセンサーのxz平面での角度
-    phi_Bx = np.deg2rad(-0.5)#Bxセンサーのxy平面での角度
-    theta_By = np.deg2rad(-0.2)#Byセンサーのyz平面での角度
-    phi_By = np.deg2rad(0.2)#Byセンサーのxy平面での角度
-    theta_Bz = np.deg2rad(1.8)#Bzセンサーのxz平面での角度
-    phi_Bz = np.deg2rad(0.)#Bzセンサーのyz平面での角度
+    theta_Bx = -0.4#Bxセンサーのxz平面での角度
+    phi_Bx = -0.5#Bxセンサーのxy平面での角度
+    theta_By = 0.2#Byセンサーのyz平面での角度
+    phi_By = 0.2#Byセンサーのxy平面での角度
+    theta_Bz = -1.8#Bzセンサーのxz平面での角度
+    phi_Bz = 0.4#Bzセンサーのyz平面での角度
     #theta_Bx = np.deg2rad(0)#Bxセンサーのxz平面での角度
     #phi_Bx = np.deg2rad(0)#Bxセンサーのxy平面での角度
     #theta_By = np.deg2rad(0)#Byセンサーのyz平面での角度
@@ -92,18 +92,22 @@ def plot(OPERAfile,MEASfile):
     #theta_Bz = np.deg2rad(0)#Bzセンサーのxz平面での角度
     #phi_Bz = np.deg2rad(0)#Bzセンサーのyz平面での角度
     
-    nBx =   rotM_xy(phi_Bx) @ rotM_xz(theta_Bx) @np.array([[0],
-                                                           [1],
-                                                           [0]])
+    nBx =   rotM_xy(phi_Bx) @ rotM_xz(theta_Bx) @ np.array([[1],
+                                                            [0],
+                                                            [0]])
     print("nBx : ", nBx)
+    #print("rotM_xz(30) : ", rotM_xz(theta_Bx))
+    #print("rotM_xy(60) : ", rotM_xy(phi_Bx))
+    #print("cos : ", np.cos(theta_Bx))
     
     nBy = rotM_xy(phi_By) @ rotM_yz(theta_By) @ np.array([[0],
+                                                          [1],
+                                                          [0]])
+    print("nBy : ", nBy)
+    
+    nBz = rotM_yz(phi_Bz) @ rotM_xz(theta_Bz) @ np.array([[0],
                                                           [0],
                                                           [1]])
-    print("nBy : ", nBy)
-    nBz = rotM_yz(phi_Bz) @ rotM_xz(theta_Bz) @ np.array([[1],
-                                                          [0],
-                                                          [0]])
     print("nBz : ", nBz)
     #OPERAデータに対して角度補正をかける。各点の磁場ベクトルと各センサーの法線ベクトルの内積
     Bxcorr = np.zeros(len(Bx))
@@ -111,22 +115,23 @@ def plot(OPERAfile,MEASfile):
     Bzcorr = np.zeros(len(Bx))
     Bcorr = np.zeros(len(Bx))
     for i in range(len(Bx)):
-        B_vec = np.array([[Bz[i]],
-                     [Bx[i]],
-                     [By[i]]])#磁場の三次元ベクトル
+        B_vec = np.array([[Bx[i]],
+                     [By[i]],
+                     [Bz[i]]])#磁場の三次元ベクトル
         Bxcorr[i] = np.dot(B_vec.T, nBx).item()#itemをつけないとあくまで1×1の行列として処理される
         Bycorr[i] = np.dot(B_vec.T, nBy).item()
         Bzcorr[i] = np.dot(B_vec.T, nBz).item()
     Bcorr =  np.sqrt(Bxcorr ** 2 + Bycorr ** 2 + Bzcorr ** 2)
     
     #キャンバス描画
-    cfit = ROOT.TCanvas("cfit", f"{axname}", 800, 600)# Z vs B Fitあり angle corrected
+    cBzcomp = ROOT.TCanvas("cBzcomp", f"{axname}", 1000, 1200)# Bz成分の分布比較
+    cBzcomp.Divide(1,2)
     call = ROOT.TCanvas("call", f"{axname}", 1600, 1200)# Z vs B Fit なし　測定 & OPERA & OPERA angle corrected 各成分
+    call.Divide(2,2)
     
     #peakposition分布のプロット作成に必要
     Xaxlist.append(np.mean(X))
     
-    call.Divide(2,2)
     gOPERAx = ROOT.TGraph(len(Z), Z, Bx)
     gOPERAx.SetMarkerStyle(8)
     gOPERAx.SetMarkerColor(ROOT.kRed+2)
@@ -140,6 +145,7 @@ def plot(OPERAfile,MEASfile):
     #gOPERAB = ROOT.TGraphErrors(len(Z), Z, B, np.zeros(len(Z)), Bstd)
     gOPERAB.SetMarkerStyle(8)
     gOPERAB.SetMarkerColor(ROOT.kRed+2)
+    '''#Fitting
     Bmaxope = np.max(B)
     BmaxopeZ = B[np.argmax(B)]
     qfopera = ROOT.TF1("qfopera", "[0]*(x - [1])^2 + [2]", BmaxopeZ-150, BmaxopeZ+150)
@@ -149,19 +155,22 @@ def plot(OPERAfile,MEASfile):
     qfopera.Draw("same")
     p1opera_list.append(qfopera.GetParameter(1))
     p1operaerr_list.append(qfopera.GetParError(1))
-    gmeasx = ROOT.TGraphErrors(len(Z), Z, Bxmeas, np.zeros(len(Z)), Bxstd)
-    gmeasx.SetMarkerStyle(7)
-    gmeasx.SetMarkerColor(ROOT.kBlue)
-    gmeasy = ROOT.TGraphErrors(len(Z), Z, Bymeas, np.zeros(len(Z)), Bystd)
-    gmeasy.SetMarkerStyle(8)
-    gmeasy.SetMarkerColor(ROOT.kBlue)
-    gmeasz = ROOT.TGraphErrors(len(Z), Z, Bzmeas, np.zeros(len(Z)), Bzstd)
-    gmeasz.SetMarkerStyle(8)
-    gmeasz.SetMarkerColor(ROOT.kBlue)
-    gmeasB = ROOT.TGraph(len(Z), Z, Bmeas)
+    '''
+    #測定値グラフ定義
+    #gmeasx = ROOT.TGraphErrors(len(Z), Z, Bxmeas, np.zeros(len(Z)), Bxstd)
+    #gmeasx.SetMarkerStyle(7)
+    #gmeasx.SetMarkerColor(ROOT.kBlue)
+    #gmeasy = ROOT.TGraphErrors(len(Z), Z, Bymeas, np.zeros(len(Z)), Bystd)
+    #gmeasy.SetMarkerStyle(8)
+    #gmeasy.SetMarkerColor(ROOT.kBlue)
+    #gmeasz = ROOT.TGraphErrors(len(Z), Z, Bzmeas, np.zeros(len(Z)), Bzstd)
+    #gmeasz.SetMarkerStyle(8)
+    #gmeasz.SetMarkerColor(ROOT.kBlue)
+    #gmeasB = ROOT.TGraph(len(Z), Z, Bmeas)
     #gmeasB = ROOT.TGraphErrors(len(Z), Z, Bmeas, np.zeros(len(Z)), Bstd)
-    gmeasB.SetMarkerStyle(8)
-    gmeasB.SetMarkerColor(ROOT.kBlue)
+    #gmeasB.SetMarkerStyle(8)
+    #gmeasB.SetMarkerColor(ROOT.kBlue)
+    '''#Fitting
     Bmeasmax = np.max(Bmeas)
     BmeasmaxZ = Bmeas[np.argmax(Bmeas)]
     qfmeas = ROOT.TF1("qfmeas", "[0]*(x - [1])^2 + [2]", BmeasmaxZ-150, BmeasmaxZ+150)
@@ -171,6 +180,7 @@ def plot(OPERAfile,MEASfile):
     qfmeas.Draw("same")
     p1meas_list.append(qfmeas.GetParameter(1))
     p1measerr_list.append(qfmeas.GetParError(1))
+    '''
     gcorrx = ROOT.TGraph(len(Z), Z, Bxcorr)
     gcorrx.SetMarkerStyle(8)
     gcorrx.SetMarkerColor(ROOT.kSpring)
@@ -188,7 +198,7 @@ def plot(OPERAfile,MEASfile):
     call.cd(1)
     mgBx = ROOT.TMultiGraph()
     mgBx.Add(gOPERAx)
-    mgBx.Add(gmeasx)
+    #mgBx.Add(gmeasx)
     mgBx.Add(gcorrx)
     mgBx.SetTitle(f"{axname} : Bx")
     mgBx.GetYaxis().SetTitle("Bx (T)")
@@ -197,14 +207,14 @@ def plot(OPERAfile,MEASfile):
     ROOT.gPad.SetGrid(1,1)
     legendBx = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
     legendBx.AddEntry(gOPERAx, "OPERA", "p")
-    legendBx.AddEntry(gmeasx, "Measured", "p")
+    #legendBx.AddEntry(gmeasx, "Measured", "p")
     legendBx.AddEntry(gcorrx, "OPERA corr", "p")
     legendBx.SetFillStyle(0)
     legendBx.Draw()
     call.cd(2)
     mgBy = ROOT.TMultiGraph()
     mgBy.Add(gOPERAy)
-    mgBy.Add(gmeasy)
+    #mgBy.Add(gmeasy)
     mgBy.Add(gcorry)
     mgBy.SetTitle(f"{axname} : By")
     mgBy.GetYaxis().SetTitle("By (T)")
@@ -213,14 +223,14 @@ def plot(OPERAfile,MEASfile):
     ROOT.gPad.SetGrid(1,1)
     legendBy = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
     legendBy.AddEntry(gOPERAy, "OPERA", "p")
-    legendBy.AddEntry(gmeasy, "Measured", "p")
+    #legendBy.AddEntry(gmeasy, "Measured", "p")
     legendBy.AddEntry(gcorry, "OPERA corr", "p")
     legendBy.SetFillStyle(0)
     legendBy.Draw()
     call.cd(3)
     mgBz = ROOT.TMultiGraph()
     mgBz.Add(gOPERAz)
-    mgBz.Add(gmeasz)
+    #mgBz.Add(gmeasz)
     mgBz.Add(gcorrz)
     mgBz.SetTitle(f"{axname} : Bz")
     mgBz.GetYaxis().SetTitle("Bz (T)")
@@ -229,14 +239,14 @@ def plot(OPERAfile,MEASfile):
     ROOT.gPad.SetGrid(1,1)
     legendBz = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
     legendBz.AddEntry(gOPERAz, "OPERA", "p")
-    legendBz.AddEntry(gmeasz, "Measured", "p")
+    #legendBz.AddEntry(gmeasz, "Measured", "p")
     legendBz.AddEntry(gcorrz, "OPERA corr", "p")
     legendBz.SetFillStyle(0)
     legendBz.Draw()
     call.cd(4)
     mgB = ROOT.TMultiGraph()
     mgB.Add(gOPERAB)
-    mgB.Add(gmeasB)
+    #mgB.Add(gmeasB)
     mgB.Add(gcorrB)
     mgB.SetTitle(f"{axname} : B")
     mgB.GetYaxis().SetTitle("B (T)")
@@ -245,23 +255,52 @@ def plot(OPERAfile,MEASfile):
     ROOT.gPad.SetGrid(1,1)
     legendB = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
     legendB.AddEntry(gOPERAB, "OPERA", "p")
-    legendB.AddEntry(gmeasB, "Measured", "p")
+    #legendB.AddEntry(gmeasB, "Measured", "p")
     legendB.AddEntry(gcorrB, "OPERA corr", "p")
     legendBx.SetFillStyle(0)
     legendB.Draw()
     call.Update()
     #キャンバスをオブジェクトとして保存
-    call_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/comp/"
+    call_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/comp_10mm/"
     call_outFile = ROOT.TFile(f"{call_dir}{axname}.root", "RECREATE")
     call.Write()
     call_outFile.Close()
     print(f"Successfuly Saved : {call_outFile}")
-    
-    cfit.cd()
-    gcorrB.SetTitle(f"{axname} : sensorangle-corrected")
-    gcorrB.GetXaxis().SetTitle("z (mm)")
-    gcorrB.GetYaxis().SetTitle("B (T)")
-    gcorrB.Draw("AP")
+    #Bz分布の比較OPERA＆OPERA corr
+    #センサーは傾いているのでそれらの感じているフラックスは独立ではないなのでBzの分布がシフトしているかどうかを確認
+    gcorrz = ROOT.TGraph(len(Z), Z, Bzcorr)
+    gcorrz.SetMarkerStyle(8)
+    gcorrz.SetMarkerColor(ROOT.kSpring)
+    gOPERAz = ROOT.TGraph(len(Z), Z, Bz)
+    gOPERAz.SetMarkerStyle(8)
+    gOPERAz.SetMarkerColor(ROOT.kRed+2)
+    #BzへのBxの漏れ込みのラフな計算
+    Bxproj = Bx*np.sin(np.deg2rad(-theta_Bz))#BxのBzへの漏れ込みの量
+    gBxproj = ROOT.TGraph(len(Z), Z, Bxproj) 
+    gBxproj.SetMarkerStyle(8)
+    gBxproj.SetMarkerColor(ROOT.kAzure+1)
+    cBzcomp.cd(1)
+    mgBzcomp = ROOT.TMultiGraph()
+    mgBzcomp.Add(gcorrz)
+    mgBzcomp.Add(gOPERAz)
+    mgBzcomp.SetTitle(f"{axname} : Bz comp")
+    mgBzcomp.GetXaxis().SetTitle("z (mm)")
+    mgBzcomp.GetYaxis().SetTitle("Bz (T)")
+    mgBzcomp.Draw("AP")
+    ROOT.gPad.SetGrid(1,1)
+    legendBzcomp = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
+    legendBzcomp.AddEntry(gOPERAz, "OPERA", "p")
+    legendBzcomp.AddEntry(gcorrz, "OPERA corr", "p")
+    legendBzcomp.SetFillStyle(0)
+    legendBzcomp.Draw()
+    cBzcomp.cd(2)
+    gBxproj.SetTitle("Projection from Bx to Bz")
+    gBxproj.GetXaxis().SetTitle("z (mm)")
+    gBxproj.GetYaxis().SetTitle("Bx projection (T)")
+    gBxproj.Draw("AP")
+    ROOT.gPad.SetGrid(1,1)
+    cBzcomp.Update()
+    '''
     Bmax = np.max(Bcorr)
     Bmax_index = np.argmax(Bcorr)
     BmaxZ = Z[Bmax_index]
@@ -272,42 +311,37 @@ def plot(OPERAfile,MEASfile):
     quadfit.Draw("same")
     p1corr_list.append(quadfit.GetParameter(1))
     p1correrr_list.append(quadfit.GetParError(1))
-    cfit.SetGridx()
-    cfit.SetGridy()
-    cfit.Draw()
-    ROOT.gStyle.SetOptFit(1)
-    cfit.Update()
-    cfit.Show()  # オプション: Canvas を表示
-    cfit_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/corr_fit/"
-    outputFile = ROOT.TFile(f"{cfit_dir}angelcorr{axname}.root", "RECREATE")
-    cfit.Write()
+    '''
+    cBzcomp_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/Bzcomp_10mm/"
+    outputFile = ROOT.TFile(f"{cBzcomp_dir}Bzcomp{axname}.root", "RECREATE")
+    cBzcomp.Write()
     outputFile.Close()
     print(f"Successfuly Saved : {outputFile}")
     
 if __name__=='__main__':
-    operafile_directory =  "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/DS189A_944turns_FieldIntegration_LaserTrackerPos/root/"
+    operafile_directory =  "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/DS189A_944turns_FieldIntegration/root/"
     measfile_directory = "/Users/shohtatakami/physics/COMETDS/Scan/"
     file_pairs= [
-        ("X_-200Y_0_Map.root","test20240627-3.root"),
-        ("X_-500Y_0_Map.root","test20240627-4.root"),
-        ("X_-650Y_0_Map.root","test20240627-7.root"),
-        ("X_-760Y_0_Map.root","test20240627-6.root"),
+        ("DS189A_944turns_FieldIntegration_X-200_Y0.root","test20240627-3.root"),
+        ("DS189A_944turns_FieldIntegration_X-500_Y0.root","test20240627-4.root"),
+        ("DS189A_944turns_FieldIntegration_X-650_Y0.root","test20240627-7.root"),
+        ("DS189A_944turns_FieldIntegration_X-760_Y0.root","test20240627-6.root"),
         #("X_0Y_-200_Map.root","test20240710-4.root"),
         #("X_0Y_-729_Map.root","test20240628-2.root"),
-        ("X_0Y_0_Map.root","test20240626-6.root"),
+        ("DS189A_944turns_FieldIntegration_X0_Y0.root","test20240626-6.root"),
         #("X_0Y_200_Map.root","test20240710-1.root"),
         #("X_0Y_780_Map.root","test20240628-0_rev.root"),
-        ("X_200Y_0_Map.root","test20240627-0.root"),
-        ("X_500Y_0_Map.root","test20240627-1.root"),
-        ("X_650Y_0_Map.root","test20240627-8.root"),
-        ("X_760Y_0_revMap.root","test20240627-2rev.root"),#rev : the version deleted the last several strange lines 
+        ("DS189A_944turns_FieldIntegration_X200_Y0.root","test20240627-0.root"),
+        ("DS189A_944turns_FieldIntegration_X500_Y0.root","test20240627-1.root"),
+        ("DS189A_944turns_FieldIntegration_X650_Y0.root","test20240627-8.root"),
+        ("DS189A_944turns_FieldIntegration_X760_Y0.root","test20240627-2rev.root"),#rev : the version deleted the last several strange lines 
     ]
     
     for operafilename, measfilename in file_pairs:
         OPERAfile = os.path.join(operafile_directory, operafilename)
         MEASfile = os.path.join(measfile_directory, measfilename)
         plot(OPERAfile, MEASfile)
-    
+    '''
     Xaxis = np.array(Xaxlist, dtype = np.float64)
     p1meas = np.array(p1meas_list, dtype = np.float64)
     p1measerr = np.array(p1measerr_list, dtype = np.float64)
@@ -346,6 +380,7 @@ if __name__=='__main__':
     cpp.Write()
     ppoutFile.Close()
     print(f"Successfuly Saved : {ppoutFile}")
+    '''
     
     #ROOT.gApplication.Run()
     
