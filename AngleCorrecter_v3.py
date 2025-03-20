@@ -25,6 +25,7 @@ def rotM_yz(deg):
     return np.array([[1, 0, 0],
                      [0, np.cos(theta), -np.sin(theta)],
                      [0, np.sin(theta), np.cos(theta)]])
+#OPERAを補正
 def plot_OPERAcorrected(OPERAfile,MEASfile):
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
@@ -239,7 +240,8 @@ def plot_OPERAcorrected(OPERAfile,MEASfile):
     cBzcomp.Write()
     outputFile.Close()
     print(f"Successfuly Saved : {outputFile}")
-def ployt_MEAScorrected(OPERAfile,MEASfile):
+#測定値を補正
+def plot_MEAScorrected(OPERAfile,MEASfile):
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
     axname =  os.path.splitext(os.path.basename(OPERAfile))[0]
@@ -317,7 +319,7 @@ def ployt_MEAScorrected(OPERAfile,MEASfile):
     nBx =   rotM_xy(phi_Bx) @ rotM_xz(theta_Bx) @ np.array([[1],
                                                             [0],
                                                             [0]])
-    print("nBx : ", nBx)
+    print("nBx \n", nBx)
     #print("rotM_xz(30) : ", rotM_xz(theta_Bx))
     #print("rotM_xy(60) : ", rotM_xy(phi_Bx))
     #print("cos : ", np.cos(theta_Bx))
@@ -325,25 +327,37 @@ def ployt_MEAScorrected(OPERAfile,MEASfile):
     nBy = rotM_xy(phi_By) @ rotM_yz(theta_By) @ np.array([[0],
                                                           [1],
                                                           [0]])
-    print("nBy : ", nBy)
+    print("nBy \n", nBy)
     
     nBz = rotM_yz(phi_Bz) @ rotM_xz(theta_Bz) @ np.array([[0],
                                                           [0],
                                                           [1]])
-    print("nBz : ", nBz)
-    #OPERAデータに対して角度補正をかける。各点の磁場ベクトルと各センサーの法線ベクトルの内積
-    Bxcorr = np.zeros(len(Bx))
-    Bycorr = np.zeros(len(Bx))
-    Bzcorr = np.zeros(len(Bx))
-    Bcorr = np.zeros(len(Bx))
-    for i in range(len(Bx)):
-        B_vec = np.array([[Bx[i]],
-                     [By[i]],
-                     [Bz[i]]])#磁場の三次元ベクトル
-        Bxcorr[i] = np.dot(B_vec.T, nBx).item()#itemをつけないとあくまで1×1の行列として処理される
-        Bycorr[i] = np.dot(B_vec.T, nBy).item()
-        Bzcorr[i] = np.dot(B_vec.T, nBz).item()
-    Bcorr =  np.sqrt(Bxcorr ** 2 + Bycorr ** 2 + Bzcorr ** 2)
+    print("nBz \n", nBz)
+    #各ホールセンサーの法線ベクトルを横にしてxyzの順に並べて、3×3行列に
+    #この行列を左から縦ベクトル(Bx,By,Bz)にかけると縦ベクトル(Bxcorr,Bycorr,Bzcorr)
+    rotM = np.hstack((nBx, nBy, nBz)).T 
+    print("rotM \n", rotM)
+    
+    #逆行列を縦ベクトル(Bxmeas,Bymeas,Bzmeas)にかけて測定を補正
+    invM = np.linalg.inv(rotM)
+    print("invM \n", invM)
+    
+    #かけて単位行列か確認
+    E = rotM @ invM
+    print("rotM invM \n", E)
+
+    #測定データに対して角度補正をかける。各点の測定磁場ベクトルと各センサーの法線ベクトルの内積
+    Bxcorr = np.zeros(len(Bxmeas))#ここでのBcorr"測定"を補正したもの
+    Bycorr = np.zeros(len(Bymeas))
+    Bzcorr = np.zeros(len(Bzmeas))
+    for i in range(len(Bxmeas)):
+        B_vec = np.array([[Bxmeas[i]],
+                     [Bymeas[i]],
+                     [Bzmeas[i]]])#測定磁場の三次元ベクトル
+        Bcorr = invM @ B_vec
+        Bxcorr[i] = Bcorr[0,0]
+        Bycorr[i] = Bcorr[1,0]
+        Bzcorr[i] = Bcorr[2,0]
     
     #キャンバス描画
     cBzcomp = ROOT.TCanvas("cBzcomp", f"{axname}", 1000, 600)# Bz成分の分布比較
@@ -402,33 +416,33 @@ def ployt_MEAScorrected(OPERAfile,MEASfile):
     #gmeasB = ROOT.TGraphErrors(len(Z), Z, Bmeas, np.zeros(len(Z)), Bstd)
     #gmeasB.SetMarkerStyle(8)
     #gmeasB.SetMarkerColor(ROOT.kBlue)
-    gcorrx = ROOT.TGraph(len(Z), Z, Bxcorr)
+    gcorrx = ROOT.TGraph(len(Zmeas), Zmeas, Bxcorr)
     gcorrx.SetMarkerStyle(8)
-    gcorrx.SetMarkerColor(ROOT.kTeal+4)
-    gcorry = ROOT.TGraph(len(Z), Z, Bycorr)
+    gcorrx.SetMarkerColor(ROOT.kAzure+7)
+    gcorry = ROOT.TGraph(len(Zmeas), Zmeas, Bycorr)
     gcorry.SetMarkerStyle(8)
-    gcorry.SetMarkerColor(ROOT.kTeal+4)
-    gcorrz = ROOT.TGraph(len(Z), Z, Bzcorr)
+    gcorry.SetMarkerColor(ROOT.kAzure+7)
+    gcorrz = ROOT.TGraphErrors(len(Zmeas), Zmeas, Bzcorr, np.zeros(len(Zmeas)), Bzstd)#測定補正につけるエラーは測定のものを内挿
     gcorrz.SetMarkerStyle(8)
-    gcorrz.SetMarkerColor(ROOT.kTeal+4)
+    gcorrz.SetMarkerColor(ROOT.kAzure+7)
     #Fit角度補正
     BzcorrMin = np.min(Bzcorr)#Bzなので分布の谷底、最小値になる
-    BzcorrMinZ = Z[np.argmin(Bzcorr)]
-    print(f"補正後 左:{Z[np.argmin(Bzcorr) - 1]}")
+    BzcorrMinZ = Zmeas[np.argmin(Bzcorr)]
+    print(f"補正後 左:{Zmeas[np.argmin(Bzcorr) - 1]}")
     print(f"補正後 :{BzcorrMinZ}")
-    print(f"補正後 右:{Z[np.argmin(Bzcorr) + 1]}")
+    print(f"補正後 右:{Zmeas[np.argmin(Bzcorr) + 1]}")
     #qfcorr = ROOT.TF1("qfcorr", "[0]*(x - [1])^2 + [2]", Z[np.argmin(Bzcorr) - 1], Z[np.argmin(Bzcorr) + 1])#頂点と両サイド3点
     qfcorr = ROOT.TF1("qfcorr", "[0]*(x - [1])^2 + [2]", BzcorrMinZ - 50, BzcorrMinZ + 50)#Fitting範囲は頂点と両サイド3点
     qfcorr.SetParameters(1e-7, BzcorrMinZ, BzcorrMin)#初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち(あとp0＋ー気をつける)
-    qfcorr.SetLineColor(ROOT.kTeal+4)
+    qfcorr.SetLineColor(ROOT.kAzure+7)
     gcorrz.Fit(qfcorr, "R")
     p1corr_list.append(qfcorr.GetParameter(1))
     p1correrr_list.append(qfcorr.GetParError(1))
     qfcorr.Draw("same")
-    gcorrB = ROOT.TGraph(len(Z), Z, Bcorr)
+    #gcorrB = ROOT.TGraph(len(Z), Z, Bcorr)
     #gcorrB = ROOT.TGraphErrors(len(Z), Z, Bcorr, np.zeros(len(Z)), Bstd)
-    gcorrB.SetMarkerStyle(8)
-    gcorrB.SetMarkerColor(ROOT.kTeal+4)
+    #gcorrB.SetMarkerStyle(8)
+    #gcorrB.SetMarkerColor(ROOT.kTeal+4)
     #Bz分布OPERA＆OPERA corr (Fittingあり)
     cBzcomp.cd()
     mgBzcomp = ROOT.TMultiGraph()
@@ -443,12 +457,12 @@ def ployt_MEAScorrected(OPERAfile,MEASfile):
     ROOT.gPad.SetGrid(1,1)
     legendBzcomp = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
     legendBzcomp.AddEntry(gOPERAz, "OPERA", "p")
-    legendBzcomp.AddEntry(gcorrz, "OPERA corr", "p")
+    legendBzcomp.AddEntry(gcorrz, "MEAS corr", "p")
     legendBzcomp.AddEntry(gmeasz, "Measured", "p")
     legendBzcomp.SetFillStyle(0)
     legendBzcomp.Draw()
     cBzcomp.Update()
-    cBzcomp_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/Bzcomp_10mmMap/"
+    cBzcomp_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/meascorrBzcomp_10mmMap/"
     outputFile = ROOT.TFile(f"{cBzcomp_dir}{axname}Fitpm50.root", "RECREATE")
     cBzcomp.Write()
     outputFile.Close()
@@ -475,7 +489,7 @@ if __name__=='__main__':
     for operafilename, measfilename in file_pairs:
         OPERAfile = os.path.join(operafile_directory, operafilename)
         MEASfile = os.path.join(measfile_directory, measfilename)
-        plot_OPERAcorrected(OPERAfile, MEASfile)
+        plot_MEAScorrected(OPERAfile, MEASfile)
     
     Xaxis = np.array(Xaxlist, dtype = np.float64)
     p1meas = np.array(p1meas_list, dtype = np.float64)
@@ -490,7 +504,7 @@ if __name__=='__main__':
     gppmeas.SetMarkerStyle(8)
     '''
     linearmeas = ROOT.TF1("linearmeas", "[0] * x^3 + [1]", np.min(Xaxis), np.max(Xaxis))
-    linearmeas.SetParameters(1e-08, 0)#初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち(あとp0＋ー気をつける)
+    linearmeas.SetParameters(1e-08, 0)#初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち(あとp0+ー気をつける)
     linearmeas.SetLineColor(ROOT.kBlue)
     gppmeas.Fit(linearmeas, "R")
     linearmeas.Draw("same")
@@ -499,11 +513,11 @@ if __name__=='__main__':
     gppopera.SetMarkerColor(ROOT.kRed+2)
     gppopera.SetMarkerStyle(8)
     gppcorr = ROOT.TGraphErrors(len(Xaxis), Xaxis, p1corr, np.zeros(len(Xaxis)), p1correrr)
-    gppcorr.SetMarkerColor(ROOT.kTeal+4)
+    gppcorr.SetMarkerColor(ROOT.kAzure+7)
     gppcorr.SetMarkerStyle(8)
     '''
     linearcorr = ROOT.TF1("linearcorr", "[0] * x^3 + [1]", np.min(Xaxis), np.max(Xaxis))
-    linearcorr.SetParameters(1e-08, 0)#初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち(あとp0＋ー気をつける)
+    linearcorr.SetParameters(1e-08, 0)#初期パラメータはp0は0にすべきではないなぜなら関数系が変わりlocal minimumに引っかかりがち(あとp0+ー気をつける)
     linearcorr.SetLineColor(ROOT.kSpring)
     gppcorr.Fit(linearcorr, "R")
     linearcorr.Draw("same")
@@ -519,13 +533,13 @@ if __name__=='__main__':
     legendpp = ROOT.TLegend(0.7, 0.75, 0.9, 0.9)
     legendpp.AddEntry(gppmeas, "Measured", "p")
     legendpp.AddEntry(gppopera, "OPERA", "p")
-    legendpp.AddEntry(gppcorr, "Angle Corr", "p")
+    legendpp.AddEntry(gppcorr, "MEAS Corr", "p")
     legendpp.SetFillStyle(0)
     legendpp.Draw()
     cpp.Update()
 
     cpp_dir = "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/Anglecorr/"
-    ppoutFile = ROOT.TFile(f"{cpp_dir}PeakPositionpm50.root", "RECREATE")
+    ppoutFile = ROOT.TFile(f"{cpp_dir}PeakPositionMEAScorr.root", "RECREATE")
     cpp.Write()
     ppoutFile.Close()
     print(f"Successfuly Saved : {ppoutFile}")
