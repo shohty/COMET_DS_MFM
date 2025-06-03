@@ -3,6 +3,12 @@ import ROOT
 import numpy as np
 import os
 import math
+# the configuration of Graph by ROOT
+ROOT.gStyle.SetLabelSize(0.06, "X") 
+ROOT.gStyle.SetLabelSize(0.06, "Y")
+ROOT.gStyle.SetTitleSize(0.05, "X")
+ROOT.gStyle.SetTitleSize(0.05, "Y")
+ROOT.gStyle.SetLegendTextSize(0.03)
 #三次元空間でのベクトルの表記方法は(x,y,z)の順
 Xaxlist = []
 #Yaxlist = []
@@ -29,9 +35,24 @@ def rotM_yz(deg):
     return np.array([[1, 0, 0],
                      [0, np.cos(theta), -np.sin(theta)],
                      [0, np.sin(theta), np.cos(theta)]])
-       
-#レールの角度も
-def DeltaofAngle(OPERAfile,MEASfile):
+    
+def DeltaofAngle(OPERAfile,MEASfile,Plane, Error):
+    #3rd argument means rotation plane, 4th argument means a value of error
+    err_str = f"{Error:.3f}".replace('.','p')
+    print(f"{err_str}")
+    if Plane =="XY":
+        dir = f"delta_yaw/{err_str}/"
+        id = f"YAW_{err_str}"
+    elif Plane =="YZ":
+        dir = f"delta_role/{err_str}/"
+        id = f"ROLE_{err_str}"
+    elif Plane == "ZX":
+        dir = f"delta_pitch/{err_str}/"
+        id = f"PITCH_{err_str}"
+    else:
+        print("you put the wrong pkane name !!")
+        return
+         
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
     axname =  os.path.splitext(os.path.basename(OPERAfile))[0]
@@ -97,12 +118,12 @@ def DeltaofAngle(OPERAfile,MEASfile):
     Bxcorr= np.zeros(len(Bxmeas))#"測定"を補正したデータを格納する(レールの角度も)
     Bycorr= np.zeros(len(Bymeas))
     Bzcorr= np.zeros(len(Bzmeas))
-    deltaBx_pl = np.zeros(len(Bxmeas))#誤差プラス側のBxとBxcorrの差
-    deltaBx_mi = np.zeros(len(Bxmeas))
-    deltaBy_pl = np.zeros(len(Bxmeas))#誤差プラス側のByとBycorrの差
-    deltaBy_mi = np.zeros(len(Bxmeas))
-    deltaBz_pl = np.zeros(len(Bxmeas))#誤差プラス側のBzとBzcorrの差
-    deltaBz_mi = np.zeros(len(Bxmeas))
+    Bxcorr_pl = np.zeros(len(Bxmeas))
+    Bxcorr_mi = np.zeros(len(Bxmeas))
+    Bycorr_pl = np.zeros(len(Bxmeas))
+    Bycorr_mi = np.zeros(len(Bxmeas))
+    Bzcorr_pl = np.zeros(len(Bxmeas))
+    Bzcorr_mi = np.zeros(len(Bxmeas))
     Bangleerr = np.zeros(len(Bxmeas))
     
     #レールの角度
@@ -162,82 +183,225 @@ def DeltaofAngle(OPERAfile,MEASfile):
         Bxcorr[i] = Bcorr[0,0]
         Bycorr[i] = Bcorr[1,0]
         Bzcorr[i] = Bcorr[2,0]
-        
         #角度の誤差の磁場への寄与を計算
-        #ZX平面(Byは影響なし)
-        nBx_pl = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx) @ rotM_zx(theta_Bx + 0.1) @ np.array([[1],[0],[0]]) #誤差のプラス側(Bxセンサー法線ベクトル)
-        nBx_mi = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx) @ rotM_zx(theta_Bx - 0.1) @ np.array([[1],[0],[0]]) #誤差のマイナス側
-        nBy_pl = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By + 0.1) @ rotM_yz(theta_By) @ np.array([[0],[1],[0]])
-        nBy_mi = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By - 0.1) @ rotM_yz(theta_By) @ np.array([[0],[1],[0]])
-        nBz_pl = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz ) @ rotM_zx(theta_Bz + 0.1) @ np.array([[0],[0],[1]])#誤差のプラス側(Bzセンサー法線ベクトル)
-        nBz_mi = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz ) @ rotM_zx(theta_Bz - 0.1) @ np.array([[0],[0],[1]])#誤差のマイナス側
-        deltaBz_pl[i] = (nBz_pl.T @ B_vec).item() - Bzcorr[i].item()#誤差のプラス側のBxの値_____________.item()をつけないと1×1のarrayとして扱われるためwarningが出る
-        deltaBz_mi[i] = (nBz_mi.T @ B_vec).item() - Bzcorr[i].item()#誤差のマイナス側のBxの値
-        deltaBx_pl[i] = (nBx_pl.T @ B_vec).item() - Bxcorr[i].item()#誤差のプラス側のBzの値
-        deltaBx_mi[i] = (nBx_mi.T @ B_vec).item() - Bxcorr[i].item()#誤差のマイナス側のBzの値
-    #print(type(deltaBx_pl[i]))
-    #print(deltaBx_pl[i].shape)
-    #Draw Graphs form here
-            #Graph configuration
-    ROOT.gStyle.SetLabelSize(0.06, "X") 
-    ROOT.gStyle.SetLabelSize(0.06, "Y")
-    ROOT.gStyle.SetTitleSize(0.05, "X")
-    ROOT.gStyle.SetTitleSize(0.05, "Y")
-    ROOT.gStyle.SetLegendTextSize(0.03)
-    
-    c_Bdelta = ROOT.TCanvas(f"delta{axname}", f"delta{axname}",1200,900)
-    c_Bdelta.Divide(1,2)
-        
-    g_Bxpldelta = ROOT.TGraph(len(Z), Z, deltaBx_pl)
-    g_Bxpldelta.SetMarkerStyle(8)
-    g_Bxpldelta.SetMarkerColor(ROOT.kRed)
-    g_Bxmidelta = ROOT.TGraph(len(Z), Z, deltaBx_mi)
-    g_Bxmidelta.SetMarkerStyle(8)
-    g_Bxmidelta.SetMarkerColor(ROOT.kBlue)
-    
-    g_Bzpldelta = ROOT.TGraph(len(Z), Z, deltaBz_pl)
-    g_Bzpldelta.SetMarkerStyle(8)
-    g_Bzpldelta.SetMarkerColor(ROOT.kRed)
-    g_Bzmidelta = ROOT.TGraph(len(Z), Z, deltaBz_mi)
-    g_Bzmidelta.SetMarkerStyle(8)
-    g_Bzmidelta.SetMarkerColor(ROOT.kBlue)
-    
-    c_Bdelta.cd(1)
-    mg_Bxdelta = ROOT.TMultiGraph()
-    mg_Bxdelta.Add(g_Bxpldelta)
-    mg_Bxdelta.Add(g_Bxmidelta)
-    mg_Bxdelta.SetTitle(f"{axname} : Bx delta")#
-    mg_Bxdelta.GetXaxis().SetTitle("Z (mm)")
-    mg_Bxdelta.GetYaxis().SetTitle("deltaB (T)")
-    mg_Bxdelta.Draw("AP")
-    ROOT.gPad.SetGrid(1,1)
-    Bxdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
-    Bxdelta_legend.AddEntry(g_Bxpldelta, "#theta + #delta#theta", "p")
-    Bxdelta_legend.AddEntry(g_Bxmidelta, "#theta - #delta#theta", "p")
-    Bxdelta_legend.SetFillStyle(0)
-    Bxdelta_legend.Draw()
-    c_Bdelta.cd(2)
-    mg_Bzdelta = ROOT.TMultiGraph()
-    mg_Bzdelta.Add(g_Bzpldelta)
-    mg_Bzdelta.Add(g_Bzmidelta)
-    mg_Bzdelta.SetTitle(f"{axname} : Bz delta")
-    mg_Bzdelta.GetXaxis().SetTitle("Z (mm)")
-    mg_Bzdelta.GetYaxis().SetTitle("deltaB (T)")
-    mg_Bzdelta.Draw("AP")
-    ROOT.gPad.SetGrid(1,1)
-    Bzdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
-    Bzdelta_legend.AddEntry(g_Bzpldelta, "#theta + #delta#theta", "p")
-    Bzdelta_legend.AddEntry(g_Bzmidelta, "#theta - #delta#theta", "p")
-    Bzdelta_legend.SetFillStyle(0)
-    Bzdelta_legend.Draw()
+        if Plane == "XY":    
+            #平面(Byは影響なし)
+            nBx_pl = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx + Error) @ rotM_zx(theta_Bx) @ np.array([[1],[0],[0]]) #誤差のプラス側(Bxセンサー法線ベクトル)
+            nBy_pl = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By + Error) @ rotM_yz(theta_By) @ np.array([[0],[1],[0]])
+            nBx_mi = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx - Error) @ rotM_zx(theta_Bx) @ np.array([[1],[0],[0]]) #誤差のマイナス側
+            nBy_mi = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By - Error) @ rotM_yz(theta_By) @ np.array([[0],[1],[0]])
+            rotM_pl = np.hstack((nBx_pl, nBy_pl, nBz)).T
+            invM_pl = np.linalg.inv(rotM_pl)
+            Bcorr_pl = invM_pl @ B_vec
+            rotM_mi = np.hstack((nBx_mi, nBy_mi, nBz)).T
+            invM_mi = np.linalg.inv(rotM_mi)
+            Bcorr_mi = invM_mi @ B_vec
+            Bxcorr_pl[i] = Bcorr_pl[0,0]
+            Bycorr_pl[i] = Bcorr_pl[1,0]
+            Bxcorr_mi[i] = Bcorr_mi[0,0]
+            Bycorr_mi[i] = Bcorr_mi[1,0]
+        elif Plane == "YZ":
+            nBy_pl = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By) @ rotM_yz(theta_By + Error) @ np.array([[0],[1],[0]])
+            nBy_mi = rotM_yz(angle_yz[i]) @ rotM_xy(phi_By) @ rotM_yz(theta_By - Error) @ np.array([[0],[1],[0]])
+            nBz_pl = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz + Error) @ rotM_zx(theta_Bz) @ np.array([[0],[0],[1]])#誤差のプラス側(Bzセンサー法線ベクトル)
+            nBz_mi = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz - Error) @ rotM_zx(theta_Bz) @ np.array([[0],[0],[1]])#誤差のマイナス側
+            rotM_pl = np.hstack((nBx, nBy_pl, nBz_pl)).T
+            invM_pl = np.linalg.inv(rotM_pl)
+            Bcorr_pl = invM_pl @ B_vec
+            rotM_mi = np.hstack((nBx, nBy_mi, nBz_mi)).T
+            invM_mi = np.linalg.inv(rotM_mi)
+            Bcorr_mi = invM_mi @ B_vec
+            Bycorr_pl[i] = Bcorr_pl[1,0]
+            Bzcorr_pl[i] = Bcorr_pl[2,0]
+            Bycorr_mi[i] = Bcorr_mi[1,0]
+            Bzcorr_mi[i] = Bcorr_mi[2,0]
+              
+        elif Plane == "ZX":
+            nBx_pl = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx) @ rotM_zx(theta_Bx + Error) @ np.array([[1],[0],[0]]) #誤差のプラス側(Bxセンサー法線ベクトル)
+            nBx_mi = rotM_zx(angle_zx[i]) @ rotM_xy(phi_Bx) @ rotM_zx(theta_Bx - Error) @ np.array([[1],[0],[0]]) #誤差のマイナス側
+            nBz_pl = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz ) @ rotM_zx(theta_Bz + Error) @ np.array([[0],[0],[1]])#誤差のプラス側(Bzセンサー法線ベクトル)
+            nBz_mi = rotM_yz(angle_yz[i]) @ rotM_zx(angle_zx[i]) @ rotM_yz(phi_Bz ) @ rotM_zx(theta_Bz - Error) @ np.array([[0],[0],[1]])#誤差のマイナス側
+            rotM_pl = np.hstack((nBx_pl, nBy, nBz_pl)).T
+            invM_pl = np.linalg.inv(rotM_pl)
+            Bcorr_pl = invM_pl @ B_vec
+            rotM_mi = np.hstack((nBx_mi, nBy, nBz_mi)).T
+            invM_mi = np.linalg.inv(rotM_mi)
+            Bcorr_mi = invM_mi @ B_vec
+            Bzcorr_pl[i] = Bcorr_pl[2,0]
+            Bxcorr_pl[i] = Bcorr_pl[0,0]
+            Bzcorr_mi[i] = Bcorr_mi[2,0]
+            Bxcorr_mi[i] = Bcorr_mi[0,0]
+        else:
+            "seems something is wrong !"
+    if Plane == "XY":
+        cXYError = ROOT.TCanvas(f"XYAngleError_{axname}", f"XYAngle_Error{axname}",1200,900)
+        cXYError.Divide(2,2)
 
-    c_Bdelta.Update()
+        gBx_pl = ROOT.TGraph(len(Z), Z, Bxcorr_pl)
+        gBx_pl.SetMarkerStyle(8)
+        gBx_pl.SetMarkerColor(ROOT.kRed)
+        gBx = ROOT.TGraph(len(Z),Z, Bxcorr)
+        gBx.SetMarkerStyle(8)
+        gBx.SetMarkerColor(ROOT.kSpring)
+        gBx_mi = ROOT.TGraph(len(Z), Z, Bxcorr_mi)
+        gBx_mi.SetMarkerStyle(8)
+        gBx_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBy_pl = ROOT.TGraph(len(Z), Z, Bycorr_pl)
+        gBy_pl.SetMarkerStyle(8)
+        gBy_pl.SetMarkerColor(ROOT.kRed)
+        gBy = ROOT.TGraph(len(Z),Z, Bycorr)
+        gBy.SetMarkerStyle(8)
+        gBy.SetMarkerColor(ROOT.kSpring)
+        gBy_mi = ROOT.TGraph(len(Z), Z, Bycorr_mi)
+        gBy_mi.SetMarkerStyle(8)
+        gBy_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBxdelta_pl = ROOT.TGraph(len(Z), Z, Bxcorr_pl - Bxcorr)
+        gBxdelta_pl.SetMarkerStyle(8)
+        gBxdelta_pl.SetMarkerColor(ROOT.kRed)
+        gBxdelta_mi = ROOT.TGraph(len(Z), Z, Bxcorr_mi - Bxcorr)
+        gBxdelta_mi.SetMarkerStyle(8)
+        gBxdelta_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBydelta_pl = ROOT.TGraph(len(Z), Z, Bycorr_pl - Bycorr)
+        gBydelta_pl.SetMarkerStyle(8)
+        gBydelta_pl.SetMarkerColor(ROOT.kRed)
+        gBydelta_mi = ROOT.TGraph(len(Z), Z, Bycorr_mi - Bycorr)
+        gBydelta_mi.SetMarkerStyle(8)
+        gBydelta_mi.SetMarkerColor(ROOT.kBlue)
+
+        cXYError.cd(1)
+        mg_Bxcorr = ROOT.TMultiGraph()
+        mg_Bxcorr.Add(gBx_pl)
+        mg_Bxcorr.Add(gBx_mi)
+        mg_Bxcorr.Add(gBx)
+        mg_Bxcorr.SetTitle(f"{axname} : Bx {id}")#
+        mg_Bxcorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bxcorr.GetYaxis().SetTitle("Bx (T)")
+        mg_Bxcorr.Draw("AP")
+        Bx_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bx_legend.AddEntry(gBx_pl, "#theta + #delta#theta", "p")
+        Bx_legend.AddEntry(gBx, "#theta ", "p")
+        Bx_legend.AddEntry(gBx_mi, "#theta - #delta#theta", "p")
+        Bx_legend.SetFillStyle(0)
+        Bx_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cXYError.cd(2)
+        mg_Bycorr = ROOT.TMultiGraph()
+        mg_Bycorr.Add(gBy_pl)
+        mg_Bycorr.Add(gBy_mi)
+        mg_Bycorr.Add(gBy)
+        mg_Bycorr.SetTitle(f"{axname} : By {id}")#
+        mg_Bycorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bycorr.GetYaxis().SetTitle("By (T)")
+        mg_Bycorr.Draw("AP")
+        By_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        By_legend.AddEntry(gBx_pl, "#theta + #delta#theta", "p")
+        By_legend.AddEntry(gBx, "#theta ", "p")
+        By_legend.AddEntry(gBx_mi, "#theta - #delta#theta", "p")
+        By_legend.SetFillStyle(0)
+        By_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cXYError.cd(3)
+        mg_Bxdelta = ROOT.TMultiGraph()
+        mg_Bxdelta.Add(gBxdelta_pl)
+        mg_Bxdelta.Add(gBxdelta_mi)
+        mg_Bxdelta.SetTitle(f"{axname} : #delta Bx {id}")#
+        mg_Bxdelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bxdelta.GetYaxis().SetTitle("#delta Bx (T)")
+        mg_Bxdelta.Draw("AP")
+        Bxdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bxdelta_legend.AddEntry(gBxdelta_pl, "#theta + #delta#theta", "p")
+        Bxdelta_legend.AddEntry(gBxdelta_mi, "#theta - #delta#theta", "p")
+        Bxdelta_legend.SetFillStyle(0)
+        Bxdelta_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cXYError.cd(4)
+        mg_Bydelta = ROOT.TMultiGraph()
+        mg_Bydelta.Add(gBydelta_pl)
+        mg_Bydelta.Add(gBydelta_mi)
+        mg_Bydelta.SetTitle(f"{axname} : #delta By {id}")#
+        mg_Bydelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bydelta.GetYaxis().SetTitle("#delta By (T)")
+        mg_Bydelta.Draw("AP")
+        Bydelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bydelta_legend.AddEntry(gBydelta_pl, "#theta + #delta#theta", "p")
+        Bydelta_legend.AddEntry(gBydelta_mi, "#theta - #delta#theta", "p")
+        Bydelta_legend.SetFillStyle(0)
+        Bydelta_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cXYError.Update()
+
+        c_Bdelta_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
+        os.makedirs(c_Bdelta_dir, exist_ok = True)#ディレクトリがなければ作成
+        delta_File = ROOT.TFile(f"{c_Bdelta_dir}{axname}.root", "RECREATE")
+        c_Bdelta.Write()
+        delta_File.Close()
+        print(f"Successfully saved : {delta_File}") 
     
-    c_Bdelta_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/delta_pitch/"#保存ディレクトリは平面に応じて分ける
-    delta_File = ROOT.TFile(f"{c_Bdelta_dir}{axname}_sensor.root", "RECREATE")
-    c_Bdelta.Write()
-    delta_File.Close()
-    print(f"Successfully saved : {delta_File}")  
+    elif Plane == "YZ":
+        ROOT.gStyle.SetLabelSize(0.06, "X") 
+        ROOT.gStyle.SetLabelSize(0.06, "Y")
+        ROOT.gStyle.SetTitleSize(0.05, "X")
+        ROOT.gStyle.SetTitleSize(0.05, "Y")
+        ROOT.gStyle.SetLegendTextSize(0.03)
+
+        c_Bdelta = ROOT.TCanvas(f"delta{axname}", f"delta{axname}",1200,900)
+        c_Bdelta.Divide(1,2)
+
+        g_Bypldelta = ROOT.TGraph(len(Z), Z, deltaBy_pl)
+        g_Bypldelta.SetMarkerStyle(8)
+        g_Bypldelta.SetMarkerColor(ROOT.kRed)
+        g_Bymidelta = ROOT.TGraph(len(Z), Z, deltaBy_mi)
+        g_Bymidelta.SetMarkerStyle(8)
+        g_Bymidelta.SetMarkerColor(ROOT.kBlue)
+
+        g_Bzpldelta = ROOT.TGraph(len(Z), Z, deltaBz_pl)
+        g_Bzpldelta.SetMarkerStyle(8)
+        g_Bzpldelta.SetMarkerColor(ROOT.kRed)
+        g_Bzmidelta = ROOT.TGraph(len(Z), Z, deltaBz_mi)
+        g_Bzmidelta.SetMarkerStyle(8)
+        g_Bzmidelta.SetMarkerColor(ROOT.kBlue)
+
+        c_Bdelta.cd(1)
+        mg_Bydelta = ROOT.TMultiGraph()
+        mg_Bydelta.Add(g_Bypldelta)
+        mg_Bydelta.Add(g_Bymidelta)
+        mg_Bydelta.SetTitle(f"{axname} : By delta {id}")#
+        mg_Bydelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bydelta.GetYaxis().SetTitle("deltaB (T)")
+        mg_Bydelta.Draw("AP")
+        ROOT.gPad.SetGrid(1,1)
+        Bydelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bydelta_legend.AddEntry(g_Bxpldelta, "#theta + #delta#theta", "p")
+        Bydelta_legend.AddEntry(g_Bxmidelta, "#theta - #delta#theta", "p")
+        Bydelta_legend.SetFillStyle(0)
+        Bydelta_legend.Draw()
+        c_Bdelta.cd(2)
+        mg_Bzdelta = ROOT.TMultiGraph()
+        mg_Bzdelta.Add(g_Bzpldelta)
+        mg_Bzdelta.Add(g_Bzmidelta)
+        mg_Bzdelta.SetTitle(f"{axname} : By delta {id}")
+        mg_Bzdelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bzdelta.GetYaxis().SetTitle("deltaB (T)")
+        mg_Bzdelta.Draw("AP")
+        ROOT.gPad.SetGrid(1,1)
+        Bzdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bzdelta_legend.AddEntry(g_Bzpldelta, "#theta + #delta#theta", "p")
+        Bzdelta_legend.AddEntry(g_Bzmidelta, "#theta - #delta#theta", "p")
+        Bzdelta_legend.SetFillStyle(0)
+        Bzdelta_legend.Draw()
+
+        c_Bdelta.Update()
+
+        c_Bdelta_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
+        os.makedirs(c_Bdelta_dir, exist_ok = True)#ディレクトリがなければ作成
+        delta_File = ROOT.TFile(f"{c_Bdelta_dir}{axname}.root", "RECREATE")
+        c_Bdelta.Write()
+        delta_File.Close()
+        print(f"Successfully saved : {delta_File}") 
+
     
 if __name__=='__main__':
     operafile_directory =  "/Users/shohtatakami/physics/COMETDS/DS189A_944turns_Integration/DS189A_944turns_FieldIntegration_LaserTrackerPos/root/"
@@ -286,7 +450,9 @@ if __name__=='__main__':
     for operafilename, measfilename in file_pairs:
         OPERAfile = os.path.join(operafile_directory, operafilename)
         MEASfile = os.path.join(measfile_directory, measfilename)
-        DeltaofAngle(OPERAfile, MEASfile)
+        DeltaofAngle(OPERAfile, MEASfile,"XY",0.14)
+        DeltaofAngle(OPERAfile, MEASfile,"YZ",0.14)
+        DeltaofAngle(OPERAfile, MEASfile,"ZX",0.23)
         #factorypillar(OPERAfile, MEASfile)
     #peak position 取得
     '''
