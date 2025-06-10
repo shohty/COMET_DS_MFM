@@ -43,15 +43,15 @@ def DeltaofAngle(OPERAfile,MEASfile,Plane, Error):
     if Plane =="XY":
         dir = f"delta_yaw/{err_str}/"
         id = f"YAW_{err_str}"
-    elif Plane =="YZ":
-        dir = f"delta_role/{err_str}/"
-        id = f"ROLE_{err_str}"
-    elif Plane == "ZX":
-        dir = f"delta_pitch/{err_str}/"
-        id = f"PITCH_{err_str}"
-    else:
-        print("you put the wrong pkane name !!")
-        return
+    #elif Plane =="YZ":
+    #    dir = f"delta_role/{err_str}/"
+    #    id = f"ROLE_{err_str}"
+    #elif Plane == "ZX":
+    #    dir = f"delta_pitch/{err_str}/"
+    #    id = f"PITCH_{err_str}"
+    #else:
+    #    print("you put the wrong pkane name !!")
+    #    return
          
     file0= ROOT.TFile.Open(OPERAfile, "READ")#OPERAシミュレーションファイルの読み込み
     file1 = ROOT.TFile.Open(MEASfile, "READ")#OPERAシミュレーションファイルの読み込み
@@ -234,6 +234,8 @@ def DeltaofAngle(OPERAfile,MEASfile,Plane, Error):
         else:
             "seems something is wrong !"
     if Plane == "XY":
+        dir = f"delta_yaw/{err_str}/"
+        id = f"YAW_{err_str}"
         cXYError = ROOT.TCanvas(f"XYAngleError_{axname}", f"XYAngle_Error{axname}",1200,900)
         cXYError.Divide(2,2)
 
@@ -297,9 +299,9 @@ def DeltaofAngle(OPERAfile,MEASfile,Plane, Error):
         mg_Bycorr.GetYaxis().SetTitle("By (T)")
         mg_Bycorr.Draw("AP")
         By_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
-        By_legend.AddEntry(gBx_pl, "#theta + #delta#theta", "p")
-        By_legend.AddEntry(gBx, "#theta ", "p")
-        By_legend.AddEntry(gBx_mi, "#theta - #delta#theta", "p")
+        By_legend.AddEntry(gBy_pl, "#theta + #delta#theta", "p")
+        By_legend.AddEntry(gBy, "#theta ", "p")
+        By_legend.AddEntry(gBy_mi, "#theta - #delta#theta", "p")
         By_legend.SetFillStyle(0)
         By_legend.Draw()
         ROOT.gPad.SetGrid(1,1)
@@ -333,74 +335,231 @@ def DeltaofAngle(OPERAfile,MEASfile,Plane, Error):
         ROOT.gPad.SetGrid(1,1)
         cXYError.Update()
 
-        c_Bdelta_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
-        os.makedirs(c_Bdelta_dir, exist_ok = True)#ディレクトリがなければ作成
-        delta_File = ROOT.TFile(f"{c_Bdelta_dir}{axname}.root", "RECREATE")
-        c_Bdelta.Write()
+        canvas_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
+        os.makedirs(canvas_dir, exist_ok = True)#ディレクトリがなければ作成
+        delta_File = ROOT.TFile(f"{canvas_dir}{axname}.root", "RECREATE")
+        cXYError.Write()
         delta_File.Close()
         print(f"Successfully saved : {delta_File}") 
-    
     elif Plane == "YZ":
-        ROOT.gStyle.SetLabelSize(0.06, "X") 
-        ROOT.gStyle.SetLabelSize(0.06, "Y")
-        ROOT.gStyle.SetTitleSize(0.05, "X")
-        ROOT.gStyle.SetTitleSize(0.05, "Y")
-        ROOT.gStyle.SetLegendTextSize(0.03)
+        dir = f"delta_role/{err_str}/"
+        id = f"ROLE_{err_str}"
+        cYZError = ROOT.TCanvas(f"YZAngleError_{axname}", f"YZAngle_Error{axname}",1200,900)
+        cYZError.Divide(2,2)
 
-        c_Bdelta = ROOT.TCanvas(f"delta{axname}", f"delta{axname}",1200,900)
-        c_Bdelta.Divide(1,2)
+        gBy_pl = ROOT.TGraph(len(Z), Z, Bycorr_pl)
+        gBy_pl.SetMarkerStyle(8)
+        gBy_pl.SetMarkerColor(ROOT.kRed)
+        gBy = ROOT.TGraph(len(Z),Z, Bycorr)
+        gBy.SetMarkerStyle(8)
+        gBy.SetMarkerColor(ROOT.kSpring)
+        gBy_mi = ROOT.TGraph(len(Z), Z, Bycorr_mi)
+        gBy_mi.SetMarkerStyle(8)
+        gBy_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBz_pl = ROOT.TGraph(len(Z), Z, Bzcorr_pl)
+        gBz_pl.SetMarkerStyle(8)
+        gBz_pl.SetMarkerColor(ROOT.kRed)
+        gBz = ROOT.TGraph(len(Z),Z, Bzcorr)
+        gBz.SetMarkerStyle(8)
+        gBz.SetMarkerColor(ROOT.kSpring)
+        gBz_mi = ROOT.TGraph(len(Z), Z, Bzcorr_mi)
+        gBz_mi.SetMarkerStyle(8)
+        gBz_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBydelta_pl = ROOT.TGraph(len(Z), Z, Bycorr_pl - Bycorr)
+        gBydelta_pl.SetMarkerStyle(8)
+        gBydelta_pl.SetMarkerColor(ROOT.kRed)
+        gBydelta_mi = ROOT.TGraph(len(Z), Z, Bycorr_mi - Bycorr)
+        gBydelta_mi.SetMarkerStyle(8)
+        gBydelta_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBzdelta_pl = ROOT.TGraph(len(Z), Z, Bzcorr_pl - Bzcorr)
+        gBzdelta_pl.SetMarkerStyle(8)
+        gBzdelta_pl.SetMarkerColor(ROOT.kRed)
+        gBzdelta_mi = ROOT.TGraph(len(Z), Z, Bzcorr_mi - Bzcorr)
+        gBzdelta_mi.SetMarkerStyle(8)
+        gBzdelta_mi.SetMarkerColor(ROOT.kBlue)
 
-        g_Bypldelta = ROOT.TGraph(len(Z), Z, deltaBy_pl)
-        g_Bypldelta.SetMarkerStyle(8)
-        g_Bypldelta.SetMarkerColor(ROOT.kRed)
-        g_Bymidelta = ROOT.TGraph(len(Z), Z, deltaBy_mi)
-        g_Bymidelta.SetMarkerStyle(8)
-        g_Bymidelta.SetMarkerColor(ROOT.kBlue)
-
-        g_Bzpldelta = ROOT.TGraph(len(Z), Z, deltaBz_pl)
-        g_Bzpldelta.SetMarkerStyle(8)
-        g_Bzpldelta.SetMarkerColor(ROOT.kRed)
-        g_Bzmidelta = ROOT.TGraph(len(Z), Z, deltaBz_mi)
-        g_Bzmidelta.SetMarkerStyle(8)
-        g_Bzmidelta.SetMarkerColor(ROOT.kBlue)
-
-        c_Bdelta.cd(1)
-        mg_Bydelta = ROOT.TMultiGraph()
-        mg_Bydelta.Add(g_Bypldelta)
-        mg_Bydelta.Add(g_Bymidelta)
-        mg_Bydelta.SetTitle(f"{axname} : By delta {id}")#
-        mg_Bydelta.GetXaxis().SetTitle("Z (mm)")
-        mg_Bydelta.GetYaxis().SetTitle("deltaB (T)")
-        mg_Bydelta.Draw("AP")
+        cYZError.cd(1)
+        mg_Bycorr = ROOT.TMultiGraph()
+        mg_Bycorr.Add(gBy_pl)
+        mg_Bycorr.Add(gBy_mi)
+        mg_Bycorr.Add(gBy)
+        mg_Bycorr.SetTitle(f"{axname} : By {id}")#
+        mg_Bycorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bycorr.GetYaxis().SetTitle("By (T)")
+        mg_Bycorr.Draw("AP")
+        By_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        By_legend.AddEntry(gBy_pl, "#theta + #delta#theta", "p")
+        By_legend.AddEntry(gBy, "#theta ", "p")
+        By_legend.AddEntry(gBy_mi, "#theta - #delta#theta", "p")
+        By_legend.SetFillStyle(0)
+        By_legend.Draw()
         ROOT.gPad.SetGrid(1,1)
+        cYZError.cd(2)
+        mg_Bzcorr = ROOT.TMultiGraph()
+        mg_Bzcorr.Add(gBz_pl)
+        mg_Bzcorr.Add(gBz_mi)
+        mg_Bzcorr.Add(gBz)
+        mg_Bzcorr.SetTitle(f"{axname} : Bz {id}")#
+        mg_Bzcorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bzcorr.GetYaxis().SetTitle("Bz (T)")
+        mg_Bzcorr.Draw("AP")
+        Bz_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bz_legend.AddEntry(gBz_pl, "#theta + #delta#theta", "p")
+        Bz_legend.AddEntry(gBz, "#theta ", "p")
+        Bz_legend.AddEntry(gBz_mi, "#theta - #delta#theta", "p")
+        Bz_legend.SetFillStyle(0)
+        Bz_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cYZError.cd(3)
+        mg_Bydelta = ROOT.TMultiGraph()
+        mg_Bydelta.Add(gBydelta_pl)
+        mg_Bydelta.Add(gBydelta_mi)
+        mg_Bydelta.SetTitle(f"{axname} : #delta By {id}")#
+        mg_Bydelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bydelta.GetYaxis().SetTitle("#delta By (T)")
+        mg_Bydelta.Draw("AP")
         Bydelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
-        Bydelta_legend.AddEntry(g_Bxpldelta, "#theta + #delta#theta", "p")
-        Bydelta_legend.AddEntry(g_Bxmidelta, "#theta - #delta#theta", "p")
+        Bydelta_legend.AddEntry(gBydelta_pl, "#theta + #delta#theta", "p")
+        Bydelta_legend.AddEntry(gBydelta_mi, "#theta - #delta#theta", "p")
         Bydelta_legend.SetFillStyle(0)
         Bydelta_legend.Draw()
-        c_Bdelta.cd(2)
-        mg_Bzdelta = ROOT.TMultiGraph()
-        mg_Bzdelta.Add(g_Bzpldelta)
-        mg_Bzdelta.Add(g_Bzmidelta)
-        mg_Bzdelta.SetTitle(f"{axname} : By delta {id}")
-        mg_Bzdelta.GetXaxis().SetTitle("Z (mm)")
-        mg_Bzdelta.GetYaxis().SetTitle("deltaB (T)")
-        mg_Bzdelta.Draw("AP")
         ROOT.gPad.SetGrid(1,1)
+        cYZError.cd(4)
+        mg_Bzdelta = ROOT.TMultiGraph()
+        mg_Bzdelta.Add(gBzdelta_pl)
+        mg_Bzdelta.Add(gBzdelta_mi)
+        mg_Bzdelta.SetTitle(f"{axname} : #delta Bz {id}")#
+        mg_Bzdelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bzdelta.GetYaxis().SetTitle("#delta Bz (T)")
+        mg_Bzdelta.Draw("AP")
         Bzdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
-        Bzdelta_legend.AddEntry(g_Bzpldelta, "#theta + #delta#theta", "p")
-        Bzdelta_legend.AddEntry(g_Bzmidelta, "#theta - #delta#theta", "p")
+        Bzdelta_legend.AddEntry(gBzdelta_pl, "#theta + #delta#theta", "p")
+        Bzdelta_legend.AddEntry(gBzdelta_mi, "#theta - #delta#theta", "p")
         Bzdelta_legend.SetFillStyle(0)
         Bzdelta_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cYZError.Update()
 
-        c_Bdelta.Update()
-
-        c_Bdelta_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
-        os.makedirs(c_Bdelta_dir, exist_ok = True)#ディレクトリがなければ作成
-        delta_File = ROOT.TFile(f"{c_Bdelta_dir}{axname}.root", "RECREATE")
-        c_Bdelta.Write()
+        canvas_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
+        os.makedirs(canvas_dir, exist_ok = True)#ディレクトリがなければ作成
+        delta_File = ROOT.TFile(f"{canvas_dir}{axname}.root", "RECREATE")
+        cYZError.Write()
         delta_File.Close()
         print(f"Successfully saved : {delta_File}") 
+    elif Plane == "ZX":
+        dir = f"delta_pitch/{err_str}/"
+        id = f"PITCH_{err_str}"
+        cZXError = ROOT.TCanvas(f"ZXAngleError_{axname}", f"ZXAngle_Error{axname}",1200,900)
+        cZXError.Divide(2,2)
+
+        gBz_pl = ROOT.TGraph(len(Z), Z, Bzcorr_pl)
+        gBz_pl.SetMarkerStyle(8)
+        gBz_pl.SetMarkerColor(ROOT.kRed)
+        gBz = ROOT.TGraph(len(Z),Z, Bzcorr)
+        gBz.SetMarkerStyle(8)
+        gBz.SetMarkerColor(ROOT.kSpring)
+        gBz_mi = ROOT.TGraph(len(Z), Z, Bzcorr_mi)
+        gBz_mi.SetMarkerStyle(8)
+        gBz_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBx_pl = ROOT.TGraph(len(Z), Z, Bxcorr_pl)
+        gBx_pl.SetMarkerStyle(8)
+        gBx_pl.SetMarkerColor(ROOT.kRed)
+        gBx = ROOT.TGraph(len(Z),Z, Bxcorr)
+        gBx.SetMarkerStyle(8)
+        gBx.SetMarkerColor(ROOT.kSpring)
+        gBx_mi = ROOT.TGraph(len(Z), Z, Bxcorr_mi)
+        gBx_mi.SetMarkerStyle(8)
+        gBx_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBzdelta_pl = ROOT.TGraph(len(Z), Z, Bzcorr_pl - Bzcorr)
+        gBzdelta_pl.SetMarkerStyle(8)
+        gBzdelta_pl.SetMarkerColor(ROOT.kRed)
+        gBzdelta_mi = ROOT.TGraph(len(Z), Z, Bzcorr_mi - Bzcorr)
+        gBzdelta_mi.SetMarkerStyle(8)
+        gBzdelta_mi.SetMarkerColor(ROOT.kBlue)
+        
+        gBxdelta_pl = ROOT.TGraph(len(Z), Z, Bxcorr_pl - Bxcorr)
+        gBxdelta_pl.SetMarkerStyle(8)
+        gBxdelta_pl.SetMarkerColor(ROOT.kRed)
+        gBxdelta_mi = ROOT.TGraph(len(Z), Z, Bxcorr_mi - Bxcorr)
+        gBxdelta_mi.SetMarkerStyle(8)
+        gBxdelta_mi.SetMarkerColor(ROOT.kBlue)
+
+        cZXError.cd(1)
+        mg_Bzcorr = ROOT.TMultiGraph()
+        mg_Bzcorr.Add(gBz_pl)
+        mg_Bzcorr.Add(gBz_mi)
+        mg_Bzcorr.Add(gBz)
+        mg_Bzcorr.SetTitle(f"{axname} : Bz {id}")#
+        mg_Bzcorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bzcorr.GetYaxis().SetTitle("Bz (T)")
+        mg_Bzcorr.Draw("AP")
+        Bz_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bz_legend.AddEntry(gBz_pl, "#theta + #delta#theta", "p")
+        Bz_legend.AddEntry(gBz, "#theta ", "p")
+        Bz_legend.AddEntry(gBz_mi, "#theta - #delta#theta", "p")
+        Bz_legend.SetFillStyle(0)
+        Bz_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cZXError.cd(2)
+        mg_Bxcorr = ROOT.TMultiGraph()
+        mg_Bxcorr.Add(gBx_pl)
+        mg_Bxcorr.Add(gBx_mi)
+        mg_Bxcorr.Add(gBx)
+        mg_Bxcorr.SetTitle(f"{axname} : Bx {id}")#
+        mg_Bxcorr.GetXaxis().SetTitle("Z (mm)")
+        mg_Bxcorr.GetYaxis().SetTitle("Bx (T)")
+        mg_Bxcorr.Draw("AP")
+        Bx_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bx_legend.AddEntry(gBx_pl, "#theta + #delta#theta", "p")
+        Bx_legend.AddEntry(gBx, "#theta ", "p")
+        Bx_legend.AddEntry(gBx_mi, "#theta - #delta#theta", "p")
+        Bx_legend.SetFillStyle(0)
+        Bx_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cZXError.cd(3)
+        mg_Bzdelta = ROOT.TMultiGraph()
+        mg_Bzdelta.Add(gBzdelta_pl)
+        mg_Bzdelta.Add(gBzdelta_mi)
+        mg_Bzdelta.SetTitle(f"{axname} : #delta Bz {id}")#
+        mg_Bzdelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bzdelta.GetYaxis().SetTitle("#delta Bz (T)")
+        mg_Bzdelta.Draw("AP")
+        Bzdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bzdelta_legend.AddEntry(gBzdelta_pl, "#theta + #delta#theta", "p")
+        Bzdelta_legend.AddEntry(gBzdelta_mi, "#theta - #delta#theta", "p")
+        Bzdelta_legend.SetFillStyle(0)
+        Bzdelta_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cZXError.cd(4)
+        mg_Bxdelta = ROOT.TMultiGraph()
+        mg_Bxdelta.Add(gBxdelta_pl)
+        mg_Bxdelta.Add(gBxdelta_mi)
+        mg_Bxdelta.SetTitle(f"{axname} : #delta Bx {id}")#
+        mg_Bxdelta.GetXaxis().SetTitle("Z (mm)")
+        mg_Bxdelta.GetYaxis().SetTitle("#delta Bx (T)")
+        mg_Bxdelta.Draw("AP")
+        Bxdelta_legend = ROOT.TLegend(0.7, 0.1, 0.9, 0.25)
+        Bxdelta_legend.AddEntry(gBxdelta_pl, "#theta + #delta#theta", "p")
+        Bxdelta_legend.AddEntry(gBxdelta_mi, "#theta - #delta#theta", "p")
+        Bxdelta_legend.SetFillStyle(0)
+        Bxdelta_legend.Draw()
+        ROOT.gPad.SetGrid(1,1)
+        cZXError.Update()
+
+        canvas_dir = "/Users/shohtatakami/physics/COMETDS/ErrorBudget/" + dir#保存ディレクトリは平面に応じて分ける
+        os.makedirs(canvas_dir, exist_ok = True)#ディレクトリがなければ作成
+        delta_File = ROOT.TFile(f"{canvas_dir}{axname}.root", "RECREATE")
+        cZXError.Write()
+        delta_File.Close()
+        print(f"Successfully saved : {delta_File}") 
+    else:
+        print("Something's WRONG")
+    
 
     
 if __name__=='__main__':
@@ -450,9 +609,15 @@ if __name__=='__main__':
     for operafilename, measfilename in file_pairs:
         OPERAfile = os.path.join(operafile_directory, operafilename)
         MEASfile = os.path.join(measfile_directory, measfilename)
-        DeltaofAngle(OPERAfile, MEASfile,"XY",0.14)
-        DeltaofAngle(OPERAfile, MEASfile,"YZ",0.14)
-        DeltaofAngle(OPERAfile, MEASfile,"ZX",0.23)
+        #DeltaofAngle(OPERAfile, MEASfile,"XY",0.14)
+        #DeltaofAngle(OPERAfile, MEASfile,"YZ",0.14)
+        DeltaofAngle(OPERAfile, MEASfile,"ZX",0.17)
+        #DeltaofAngle(OPERAfile, MEASfile,"XY",0.1)
+        #DeltaofAngle(OPERAfile, MEASfile,"YZ",0.1)
+        #DeltaofAngle(OPERAfile, MEASfile,"ZX",0.1)
+        DeltaofAngle(OPERAfile, MEASfile,"XY",0.15)
+        DeltaofAngle(OPERAfile, MEASfile,"YZ",0.02)
+        DeltaofAngle(OPERAfile, MEASfile,"ZX",0.006)
         #factorypillar(OPERAfile, MEASfile)
     #peak position 取得
     '''
